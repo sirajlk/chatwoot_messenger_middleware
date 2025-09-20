@@ -44,7 +44,7 @@ app.post("/webhook", async (req, res) => {
         console.log(`📥 Message from ${senderId}:`, userMessage);
 
         if (userMessage === "hi") {
-          await console.log("hi recieved")
+          await sendReply(senderId);
         }
       }
     });

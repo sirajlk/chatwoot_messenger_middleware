@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 
 const VERIFY_TOKEN = "my-secret-token" // same as "my-secret-token"
-const PAGE_ACCESS_TOKEN = "gnntntntmstmdtymdymdysdxt"; // for replying
+const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN; // for replying
 
 // ==============================
 // 📬 WEBHOOK ENDPOINT
@@ -59,33 +59,42 @@ app.post("/webhook", async (req, res) => {
 // 📤 HELPER: SEND REPLY
 // ==============================
 async function sendReply(senderId) {
-  try {
-    await axios.post(
-      `https://graph.facebook.com/v12.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
-      {
-        recipient: { id: senderId },
-        message: {
-          text: "Hi, how are you? What do you want for today?",
-          quick_replies: [
-            {
-              content_type: "text",
-              title: "Pizza 🍕",
-              payload: "ORDER_PIZZA",
-            },
-            {
-              content_type: "text",
-              title: "Burger 🍔",
-              payload: "ORDER_BURGER",
-            },
-          ],
+  const payload = {
+    recipient: { id: senderId },
+    message: {
+      text: "Hi, how are you? What do you want for today?",
+      quick_replies: [
+        {
+          content_type: "text",
+          title: "Pizza 🍕",
+          payload: "ORDER_PIZZA",
         },
-      },
+        {
+          content_type: "text",
+          title: "Burger 🍔",
+          payload: "ORDER_BURGER",
+        },
+      ],
+    },
+  };
+
+  console.log("📤 Sending payload to Facebook:", JSON.stringify(payload, null, 2));
+
+  try {
+    const response = await axios.post(
+      `https://graph.facebook.com/v12.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+      payload,
       { headers: { "Content-Type": "application/json" } }
     );
 
     console.log(`✅ Sent reply to ${senderId}`);
+    console.log("📥 Facebook response:", response.data);
   } catch (error) {
-    console.error("❌ Failed to send message:", error.response?.data || error.message);
+    if (error.response) {
+      console.error("❌ Failed to send message:", error.response.status, error.response.data);
+    } else {
+      console.error("❌ Failed to send message:", error.message);
+    }
   }
 }
 

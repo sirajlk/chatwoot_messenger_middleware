@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 
 const VERIFY_TOKEN = 'my-secret-token' // same as "my-secret-token"
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN; // for replying
+const PAGE_ACCESS_TOKEN = "gnntntntmstmdtymdymdysdxt"; // for replying
 
 // ==============================
 // 📬 WEBHOOK ENDPOINT
@@ -44,7 +44,7 @@ app.post("/webhook", async (req, res) => {
         console.log(`📥 Message from ${senderId}:`, userMessage);
 
         if (userMessage === "hi") {
-          await sendReply(senderId);
+          await console.log("hi recieved")
         }
       }
     });

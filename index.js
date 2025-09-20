@@ -2,11 +2,15 @@
 export default function handler(req, res) {
   if (req.method === "GET") {
     // Webhook verification
+    console.log("rquest is -------", req.query)
+    console.log("rquest query is ------- ", req.query)
+    console.log("rquest body is ------- ", req.body)
+
     const VERIFY_TOKEN = "my-secret-token";
     const mode = req.query["hub.mode"];
     const token = req.query["hub.verify_token"];
     const challenge = req.query["hub.challenge"];
-
+    
     if (mode && token && mode === "subscribe" && token === VERIFY_TOKEN) {
       return res.status(200).send(challenge);
     } else {

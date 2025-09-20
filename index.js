@@ -10,7 +10,7 @@ app.use(express.json());
 const VERIFY_TOKEN = "my-secret-token" // same as "my-secret-token"
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN; // for replying
 
-// ==============================
+// ===============================
 // 📬 WEBHOOK ENDPOINT
 // ==============================
 app.get("/webhook", (req, res) => {

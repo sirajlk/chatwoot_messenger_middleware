@@ -7,7 +7,7 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-const VERIFY_TOKEN = 'my-secret-token' // same as "my-secret-token"
+const VERIFY_TOKEN = "my-secret-token" // same as "my-secret-token"
 const PAGE_ACCESS_TOKEN = "gnntntntmstmdtymdymdysdxt"; // for replying
 
 // ==============================

@@ -62,20 +62,26 @@ async function sendReply(senderId) {
   const payload = {
     recipient: { id: senderId },
     message: {
-      text: "Hi, how are you? What do you want for today?",
-      quick_replies: [
-        {
-          content_type: "text",
-          title: "Pizza 🍕",
-          payload: "ORDER_PIZZA",
-        },
-        {
-          content_type: "text",
-          title: "Burger 🍔",
-          payload: "ORDER_BURGER",
-        },
-      ],
-    },
+      attachment: {
+        type: "template",
+        payload: {
+          template_type: "button",
+          text: "Hi, how are you? What do you want for today?",
+          buttons: [
+            {
+              type: "postback",
+              title: "Pizza 🍕",
+              payload: "ORDER_PIZZA"
+            },
+            {
+              type: "postback",
+              title: "Burger 🍔",
+              payload: "ORDER_BURGER"
+            }
+          ]
+        }
+      }
+    }
   };
 
   console.log("📤 Sending payload to Facebook:", JSON.stringify(payload, null, 2));

@@ -1,8 +1,38 @@
 import express from "express";
 import dotenv from "dotenv";
 import axios from "axios";
+import { SessionsClient } from "@google-cloud/dialogflow-cx";
 
 dotenv.config();
+
+// ==============================
+// 🔐 GOOGLE SERVICE ACCOUNT SETUP
+// ==============================
+const credentials = {
+  type: "service_account",
+  project_id: process.env.PROJECT_ID,
+  private_key_id: process.env.PRIVATE_KEY_ID,
+  private_key: process.env.PRIVATE_KEY.replace(/\\n/g, "\n"),
+  client_email: process.env.CLIENT_EMAIL,
+  client_id: process.env.CLIENT_ID,
+  auth_uri: process.env.AUTH_URI,
+  token_uri: process.env.TOKEN_URI,
+  auth_provider_x509_cert_url: process.env.AUTH_PROVIDER_X509_CERT_URL,
+  client_x509_cert_url: process.env.CLIENT_X509_CERT_URL,
+};
+
+// ==============================
+// 📦 GLOBAL CONFIG
+// ==============================
+const projectId = "customer-support-dury";
+const agentId = "a876e6a2-c33d-4b32-985d-daf270fd1278";
+const location = "us-central1";
+const languageCode = "en";
+
+const client = new SessionsClient({
+  credentials,
+  apiEndpoint: "us-central1-dialogflow.googleapis.com",
+});
 
 const app = express();
 app.use(express.json());
@@ -39,12 +69,29 @@ app.post("/webhook", async (req, res) => {
       const event = entry.messaging[0];
       const senderId = event.sender.id;
 
+      // Text message from user
       if (event.message && event.message.text) {
-        const userMessage = event.message.text.toLowerCase();
-        console.log(`📥 Message from ${senderId}:`, userMessage);
+        const userMessage = event.message.text;
 
-        if (userMessage === "hi") {
-          await sendReply(senderId);
+        const dfResponse = await sendToDialogflowCX(senderId, userMessage);
+
+        const messengerPayload = buildMessengerPayloadFromDialogflow(dfResponse, senderId);
+
+        if (messengerPayload) {
+          await sendMessageToMessenger(messengerPayload);
+        }
+      }
+
+      // Postback button clicked
+      if (event.postback && event.postback.payload) {
+        const userMessage = event.postback.payload;
+
+        const dfResponse = await sendToDialogflowCX(senderId, userMessage);
+
+        const messengerPayload = buildMessengerPayloadFromDialogflow(dfResponse, senderId);
+
+        if (messengerPayload) {
+          await sendMessageToMessenger(messengerPayload);
         }
       }
     });
@@ -54,6 +101,90 @@ app.post("/webhook", async (req, res) => {
 
   return res.sendStatus(404);
 });
+
+async function sendMessageToMessenger(payload) {
+  try {
+    const response = await axios.post(
+      `https://graph.facebook.com/v12.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+      payload,
+      { headers: { "Content-Type": "application/json" } }
+    );
+    console.log("✅ Sent message to Messenger");
+    console.dir(response.data);
+  } catch (error) {
+    console.error("❌ Failed to send message to Messenger", error.response?.data || error.message);
+  }
+}
+
+async function sendToDialogflowCX(sessionId, userMessage) {
+  const sessionPath = client.projectLocationAgentSessionPath(
+    projectId,
+    location,
+    agentId,
+    sessionId
+  );
+
+  const request = {
+    session: sessionPath,
+    queryInput: {
+      text: { text: userMessage },
+      languageCode,
+    },
+  };
+
+  try {
+    const [response] = await client.detectIntent(request);
+    return response.queryResult;
+  } catch (err) {
+    console.error("❌ Dialogflow CX request failed", err);
+    return null;
+  }
+}
+
+function buildMessengerPayloadFromDialogflow(queryResult, senderId) {
+  if (!queryResult) return null;
+
+  const message = queryResult.responseMessages?.[0];
+
+  // Handle custom payload with buttons
+  if (message?.payload?.fields?.content_type?.stringValue === "input_select") {
+    const content = message.payload.fields.content?.stringValue || "Please choose:";
+    const items = message.payload.fields.content_attributes.structValue.fields.items.listValue.values;
+
+    const buttons = items.slice(0, 3).map((item) => ({
+      type: "postback",
+      title: item.structValue.fields.title.stringValue,
+      payload: item.structValue.fields.value.stringValue,
+    }));
+
+    return {
+      recipient: { id: senderId },
+      message: {
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "button",
+            text: content,
+            buttons: buttons,
+          },
+        },
+      },
+    };
+  }
+
+  // Fallback to simple text message
+  if (message?.text?.text?.length) {
+    return {
+      recipient: { id: senderId },
+      message: {
+        text: message.text.text[0],
+      },
+    };
+  }
+
+  return null;
+}
+
 
 // ==============================
 // 📤 HELPER: SEND REPLY

@@ -65,42 +65,44 @@ app.post("/webhook", async (req, res) => {
   const body = req.body;
 
   if (body.object === "page") {
-    body.entry.forEach(async (entry) => {
-      const event = entry.messaging[0];
-      const senderId = event.sender.id;
+    try {
+      for (const entry of body.entry) {
+        const event = entry.messaging[0];
+        const senderId = event.sender.id;
 
-      // Text message from user
-      if (event.message && event.message.text) {
-        const userMessage = event.message.text;
+        if (event.message && event.message.text) {
+          const userMessage = event.message.text;
 
-        const dfResponse = await sendToDialogflowCX(senderId, userMessage);
+          const dfResponse = await sendToDialogflowCX(senderId, userMessage);
+          const messengerPayload = buildMessengerPayloadFromDialogflow(dfResponse, senderId);
 
-        const messengerPayload = buildMessengerPayloadFromDialogflow(dfResponse, senderId);
+          if (messengerPayload) {
+            await sendMessageToMessenger(messengerPayload);
+          }
+        }
 
-        if (messengerPayload) {
-          await sendMessageToMessenger(messengerPayload);
+        if (event.postback && event.postback.payload) {
+          const userMessage = event.postback.payload;
+
+          const dfResponse = await sendToDialogflowCX(senderId, userMessage);
+          const messengerPayload = buildMessengerPayloadFromDialogflow(dfResponse, senderId);
+
+          if (messengerPayload) {
+            await sendMessageToMessenger(messengerPayload);
+          }
         }
       }
 
-      // Postback button clicked
-      if (event.postback && event.postback.payload) {
-        const userMessage = event.postback.payload;
-
-        const dfResponse = await sendToDialogflowCX(senderId, userMessage);
-
-        const messengerPayload = buildMessengerPayloadFromDialogflow(dfResponse, senderId);
-
-        if (messengerPayload) {
-          await sendMessageToMessenger(messengerPayload);
-        }
-      }
-    });
-
-    return res.status(200).send("EVENT_RECEIVED");
+      return res.status(200).send("EVENT_RECEIVED");
+    } catch (error) {
+      console.error("❌ Error processing webhook:", error);
+      return res.sendStatus(500);
+    }
   }
 
   return res.sendStatus(404);
 });
+
 
 async function sendMessageToMessenger(payload) {
   try {
